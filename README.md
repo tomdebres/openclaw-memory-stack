@@ -113,7 +113,7 @@ See [SETUP.md](SETUP.md) for full installation instructions.
 | Multiple embeddings | LM Studio, Ollama, or OpenAI |
 | Incremental indexing | Only re-index changed files |
 
-## What's Inside
+## Documentation
 
 ```
 openclaw-memory-stack/
