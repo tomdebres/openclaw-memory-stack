@@ -1,0 +1,53 @@
+{
+  "vault": {
+    "allow": ["**/*.md", "**/*.txt", "**/*.org"],
+    "exclude": ["**/node_modules/**", "**/.git/**", "**/dist/**"]
+  },
+  "repo": {
+    "allow": [
+      "**/*.py",
+      "**/*.js",
+      "**/*.ts",
+      "**/*.json",
+      "**/*.yaml",
+      "**/*.yml",
+      "**/*.md",
+      "**/*.sh",
+      "**/*.sql"
+    ],
+    "exclude": [
+      "**/node_modules/**",
+      "**/.git/**",
+      "**/dist/**",
+      "**/build/**",
+      "**/__pycache__/**",
+      "**/.venv/**",
+      "**/venv/**",
+      "**/*.pyc"
+    ]
+  },
+  "never_index": [
+    "**/.env*",
+    "**/*.pem",
+    "**/*.key",
+    "**/*.p12",
+    "**/*.pfx",
+    "**/secrets/**",
+    "**/.secrets/**",
+    "**/*token*",
+    "**/*password*",
+    "**/*credential*",
+    "**/*secret*",
+    "**/id_rsa**",
+    "**/id_ed25519**",
+    "**/known_hosts",
+    "**/.aws/**",
+    "**/.dockerconfigjson"
+  ],
+  "domain_overrides": {
+    "scripts/": "automation",
+    "docs/": "documentation",
+    "src/": "source"
+  },
+  "project": "tomos-memory-stack"
+}
