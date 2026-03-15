@@ -1,6 +1,6 @@
 # CLI Reference
 
-This document covers all command-line tools in the TomOS Memory Stack.
+This document covers all command-line tools in the OpenClaw Memory Stack.
 
 ---
 
@@ -271,7 +271,7 @@ python scripts/memory_discord_alert.py [options]
 | Variable | Description |
 |----------|-------------|
 | `DISCORD_MEMORY_WEBHOOK_URL` | Your Discord webhook URL |
-| `DATABASE_URL` or `TOMOS_MEMORY_DSN` | Database connection |
+| `DATABASE_URL` or `OPENCLAW_MEMORY_DSN` | Database connection |
 | `LM_STUDIO_URL` | Embedding service URL |
 
 ### Examples
@@ -314,8 +314,8 @@ bash scripts/index-memory-repo --full       # Full rebuild
 ```
 
 Both scripts use environment variables:
-- `TOMOS_REPO_MEMORY_PATH` — root path to scan
-- `TOMOS_MEMORY_POLICY_PATH` — path to index policy JSON
+- `OPENCLAW_REPO_MEMORY_PATH` — root path to scan
+- `OPENCLAW_MEMORY_POLICY_PATH` — path to index policy JSON
 
 ---
 
@@ -324,7 +324,7 @@ Both scripts use environment variables:
 | Variable | Required | Description |
 |----------|----------|-------------|
 | `DATABASE_URL` | Yes* | Database connection (DuckDB or PostgreSQL) |
-| `TOMOS_MEMORY_DSN` | Yes* | Alias for DATABASE_URL |
+| `OPENCLAW_MEMORY_DSN` | Yes* | Alias for DATABASE_URL |
 | `LM_STUDIO_URL` | Yes* | LM Studio server URL |
 | `LM_STUDIO_EMBED_MODEL` | Yes* | Embedding model name |
 | `OLLAMA_URL` | Yes* | Ollama server URL |

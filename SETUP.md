@@ -1,6 +1,6 @@
 # Setup Guide
 
-This guide walks you through installing and configuring the TomOS Memory Stack.
+This guide walks you through installing and configuring the OpenClaw Memory Stack.
 
 ## Prerequisites
 
@@ -14,8 +14,8 @@ This guide walks you through installing and configuring the TomOS Memory Stack.
 ## Step 1: Clone and Install
 
 ```bash
-git clone https://github.com/tomdebres/tomos-memory-stack.git
-cd tomos-memory-stack
+git clone https://github.com/tomdebres/openclaw-memory-stack.git
+cd openclaw-memory-stack
 
 # Create a virtual environment (recommended)
 python3 -m venv .venv
@@ -39,9 +39,9 @@ Edit `.env` with your settings:
 
 ```bash
 # DuckDB with pgvector extension
-DATABASE_URL="duckdb:///tomos_memory.duckdb"
+DATABASE_URL="duckdb:///openclaw_memory.duckdb"
 # Or PostgreSQL with pgvector
-DATABASE_URL="postgresql://user:pass@localhost:5432/tomos"
+DATABASE_URL="postgresql://user:pass@localhost:5432/openclaw"
 ```
 
 ### Embedding Service
@@ -73,8 +73,8 @@ DISCORD_MEMORY_WEBHOOK_URL="https://discord.com/api/webhooks/..."
 
 ```bash
 # Default paths if not set
-TOMOS_REPO_MEMORY_PATH="/path/to/your/repo"
-TOMOS_MEMORY_POLICY_PATH="./memory-layer/index-policy.json"
+OPENCLAW_REPO_MEMORY_PATH="/path/to/your/repo"
+OPENCLAW_MEMORY_POLICY_PATH="./memory-layer/index-policy.json"
 ```
 
 ## Step 3: Initialize the Database
@@ -141,10 +141,10 @@ Add these to your crontab for automated indexing and health monitoring:
 
 ```bash
 # Index every 15 minutes
-*/15 * * * * cd /path/to/tomos-memory-stack && python scripts/index-memory-repo >> /var/log/tomos-index.log 2>&1
+*/15 * * * * cd /path/to/openclaw-memory-stack && python scripts/index-memory-repo >> /var/log/openclaw-index.log 2>&1
 
 # Health check every hour (posts to Discord only on failures)
-0 * * * * cd /path/to/tomos-memory-stack && python scripts/memory_discord_alert.py >> /var/log/tomos-health.log 2>&1
+0 * * * * cd /path/to/openclaw-memory-stack && python scripts/memory_discord_alert.py >> /var/log/openclaw-health.log 2>&1
 ```
 
 ## Troubleshooting

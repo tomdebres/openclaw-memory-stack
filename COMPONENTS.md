@@ -1,6 +1,6 @@
 # Components
 
-The TomOS Memory Stack is built from four main components, each solving a specific memory challenge:
+The OpenClaw Memory Stack is built from four main components, each solving a specific memory challenge:
 
 | Component | What It Does | Why It Matters |
 |-----------|--------------|----------------|

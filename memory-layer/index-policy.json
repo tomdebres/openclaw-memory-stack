@@ -49,5 +49,5 @@
     "docs/": "documentation",
     "src/": "source"
   },
-  "project": "tomos-memory-stack"
+  "project": "openclaw-memory-stack"
 }

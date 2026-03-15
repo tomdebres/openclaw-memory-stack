@@ -1,5 +1,7 @@
 # Discord Alerts
 
+![Discord Alert Example](../docs/discord-alert-example.jpg)
+
 Set up Discord webhooks for memory stack health alerts.
 
 ## Overview

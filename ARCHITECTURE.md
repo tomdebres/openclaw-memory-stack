@@ -1,6 +1,6 @@
 # Architecture
 
-High-level design and data flow for the TomOS Memory Stack.
+High-level design and data flow for the OpenClaw Memory Stack.
 
 ## Overview
 

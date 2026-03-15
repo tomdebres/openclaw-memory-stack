@@ -53,7 +53,7 @@ Never commit secrets to git. Use:
 
 ```bash
 # Safe to commit (or use .env.example)
-DATABASE_URL="duckdb:///tomos_memory.duckdb"
+DATABASE_URL="duckdb:///openclaw_memory.duckdb"
 LM_STUDIO_URL="http://localhost:1234/v1"
 
 # Secret - keep out of git
@@ -113,7 +113,7 @@ DISCORD_WEBHOOK_URL="https://discord.com/api/webhooks/..."
 
 ```bash
 # Restrict access
-chmod 700 tomos-memory-stack/
+chmod 700 openclaw-memory-stack/
 chmod 600 .env
 ```
 
@@ -121,7 +121,7 @@ chmod 600 .env
 
 ```bash
 # DuckDB - file permissions
-chmod 600 tomos_memory.duckdb
+chmod 600 openclaw_memory.duckdb
 ```
 
 ## Monitoring

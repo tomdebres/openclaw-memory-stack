@@ -86,10 +86,10 @@ Health monitoring gives you:
 
 ```bash
 # Index every 15 minutes
-*/15 * * * * cd /path/to/tomos-memory-stack && python scripts/index-memory-repo >> /var/log/tomos-index.log 2>&1
+*/15 * * * * cd /path/to/openclaw-memory-stack && python scripts/index-memory-repo >> /var/log/openclaw-index.log 2>&1
 
 # Health alert every hour
-0 * * * * cd /path/to/tomos-memory-stack && python scripts/memory_discord_alert.py >> /var/log/tomos-health.log 2>&1
+0 * * * * cd /path/to/openclaw-memory-stack && python scripts/memory_discord_alert.py >> /var/log/openclaw-health.log 2>&1
 ```
 
 ## Output Examples
@@ -108,7 +108,7 @@ Status: HEALTHY
 ### Discord Output
 
 ```
-🟢 TomOS Memory Stack
+🟢 OpenClaw Memory Stack
 • LM Studio: OK
 • pgvector: OK
 • Docs: 142 | Chunks: 1,203
@@ -118,7 +118,7 @@ Status: HEALTHY
 ### Failure Alert
 
 ```
-🔴 TomOS Memory Stack Alert
+🔴 OpenClaw Memory Stack Alert
 • LM Studio: UNREACHABLE (connection refused)
 • Last index: 26 hours ago (STALE)
 ```
@@ -138,7 +138,7 @@ Status: HEALTHY
 
 ```bash
 # Add to crontab
-0 9 * * * cd ~/tomos-memory-stack && python scripts/memory_health.py --discord
+0 9 * * * cd ~/openclaw-memory-stack && python scripts/memory_health.py --discord
 
 # You get a morning notification:
 # "🟢 Memory Stack healthy - 142 docs, 1,203 chunks indexed"

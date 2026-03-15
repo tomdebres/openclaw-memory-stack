@@ -1,4 +1,4 @@
-# TomOS Memory Stack
+# OpenClaw Memory Stack
 
 Requirements file for Python dependencies.
 
