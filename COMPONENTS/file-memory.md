@@ -2,19 +2,19 @@
 
 pgvector-backed document indexing with policy-driven corpus controls.
 
-## Overview
+## What It Does
 
-File Memory indexes documents from vaults (Obsidian-style notes) and repositories, making them searchable via semantic similarity.
+File Memory indexes documents from vaults (Obsidian-style notes) and repositories, making them searchable via semantic similarity. Unlike keyword search, it understands *meaning* — so "meeting notes" will find "calendar sync discussion" even if those exact words don't appear.
 
 ## How It Works
 
-### Indexing Pipeline
+### The Indexing Pipeline
 
-1. **Scan** — Walk the root directory, collect all files
+1. **Scan** — Walk the root directory, collect all files matching allow rules
 2. **Filter** — Apply policy rules (allow/exclude/never-index)
-3. **Chunk** — Split files into semantic chunks (headings, paragraphs)
+3. **Chunk** — Split files into semantic chunks (headings, paragraphs, code blocks)
 4. **Embed** — Convert chunks to vectors via LM Studio/Ollama/OpenAI
-5. **Store** — Save to pgvector with metadata
+5. **Store** — Save vectors to pgvector (DuckDB) with rich metadata
 
 ### Policy-Driven Corpus Control
 
@@ -43,14 +43,59 @@ The index policy lives in `memory-layer/index-policy.json`:
 }
 ```
 
-### Metadata
+### Metadata Schema
 
-Each chunk carries:
-- `project` — stable project tag
-- `domain` — logical domain (notes, code, automation)
-- `source_type` — vault or repo
-- `path_parts`, `path_parent`, `path_depth`, `top_level` — path hierarchy
-- `tags` — derived labels
+Each chunk carries rich metadata for filtering and ranking:
+
+| Field | Description |
+|-------|-------------|
+| `project` | Stable project tag |
+| `domain` | Logical domain (notes, code, automation) |
+| `source_type` | vault or repo |
+| `path_parts` | Array of path components |
+| `path_parent` | Parent directory |
+| `path_depth` | Depth in tree |
+| `top_level` | Top-level folder |
+| `tags` | Derived labels |
+
+### Incremental Indexing
+
+By default, indexers are **incremental**:
+- Each file is hashed after indexing
+- Only files with changed content hash are re-embedded
+- Use `--full` for intentional full rebuilds
+
+## Why It Matters
+
+### Problem: Keyword Search Is Limited
+
+Traditional search requires exact matches:
+- "budget" won't find "financial planning"
+- "Python script" won't find "automation code"
+- You need to know the right keywords to find anything
+
+### Solution: Semantic Understanding
+
+With vector embeddings:
+- "What did Tom write about the trading strategy?" finds relevant notes even without those exact words
+- "Find my notes on project X" works without remembering exact filenames
+- Related concepts surface automatically
+
+### The Database Tables
+
+| Table | Description |
+|-------|-------------|
+| `memory_documents` | File metadata (path, hash, last modified) |
+| `memory_chunks` | Embedded text + vector (1536 dimensions) |
+| `memory_index_runs` | Index run history for freshness checks |
+
+### Ranking Algorithm
+
+Search results are ranked by:
+1. **Semantic similarity** — Vector distance (cosine similarity)
+2. **Exact text match** — Boost for literal query matches
+3. **Heading/title boost** — Chunks from titles rank higher
+4. **Path preference** — Configurable path-based boosting
 
 ## Usage
 
@@ -73,7 +118,7 @@ bash scripts/index-memory-vault
 bash scripts/index-memory-repo
 ```
 
-### Options
+### Command Options
 
 | Option | Description |
 |--------|-------------|
@@ -85,31 +130,22 @@ bash scripts/index-memory-repo
 | `--limit` | Limit files for smoke test |
 | `--json` | JSON output |
 
-## Incremental Indexing
+---
 
-By default, indexers are **incremental**:
+## Example
 
-- Only files with changed content hash are re-embedded
-- Use `--full` for intentional full rebuilds
+```bash
+# Index your Obsidian vault
+python scripts/memory_index.py --source-type vault --root ~/notes --domain personal
 
-## What's Stored
-
-| Table | Description |
-|-------|-------------|
-| `memory_documents` | File metadata (path, hash, last modified) |
-| `memory_chunks` | Embedded text + vector |
-| `memory_index_runs` | Index run history |
-
-## Ranking
-
-Search results are ranked by:
-1. Semantic similarity (vector distance)
-2. Exact text match boost
-3. Heading/title boost
-4. Path preference boost (configurable)
+# Now search semantically
+agent-memory query "what did I write about my health goals"
+# Returns: "nutrition-plan.md" (contains meal planning, related to health)
+```
 
 ---
 
 See also:
 - [memory_index.py](../scripts/memory_index.py)
 - [index-memory-*](../scripts/) wrappers
+- [EMBEDDINGS.md](../EMBEDDINGS.md) for embedding service setup
