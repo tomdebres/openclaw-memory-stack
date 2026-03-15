@@ -1,8 +1,8 @@
-# TomOS Memory Stack
+# OpenClaw Memory Stack
 
 > A typed memory system for AI agents with semantic search, conversation summaries, and automated health monitoring.
 
-TomOS Memory Stack gives your AI agents **long-term memory they can actually trust**. It combines fast local JSON stores for preferences and facts with pgvector-powered semantic search across your documents and conversation history.
+OpenClaw Memory Stack fixes **agent amnesia** in OpenClaw. It gives your AI agents long-term memory they can actually trust — combining fast local JSON stores for preferences and facts with pgvector-powered semantic search across documents and conversation history.
 
 ## Why Memory Matters
 
@@ -12,7 +12,7 @@ Every good AI assistant starts each conversation fresh — that's by design. But
 - **Context is lost** — That project decision from last week? Gone.
 - **Search is manual** — You end up re-explaining things over and over.
 
-TomOS Memory Stack fixes this. It gives your agents structured, queryable memory that persists across sessions — without compromising on privacy or control.
+OpenClaw Memory Stack fixes this. It gives your agents structured, queryable memory that persists across sessions — without compromising on privacy or control.
 
 ## What It Does
 
@@ -49,8 +49,8 @@ Automated checks ensure your memory stack stays healthy:
 
 ```bash
 # Clone and enter the repo
-git clone https://github.com/tomdebres/tomos-memory-stack.git
-cd tomos-memory-stack
+git clone https://github.com/tomdebres/openclaw-memory-stack.git
+cd openclaw-memory-stack
 
 # Install dependencies
 pip install -r requirements.txt
@@ -116,7 +116,7 @@ See [SETUP.md](SETUP.md) for full installation instructions.
 ## What's Inside
 
 ```
-tomos-memory-stack/
+openclaw-memory-stack/
 ├── README.md                    # You're here!
 ├── SETUP.md                     # Installation guide
 ├── API.md                       # CLI reference
@@ -141,15 +141,15 @@ tomos-memory-stack/
 - **Embedding service**: LM Studio, Ollama, or OpenAI API (at least one)
 - **Optional**: Discord webhook for alerts
 
+## Used In
+
+This stack is actively used in [TomOS](https://github.com/tomdebres/tomos) — a personal LifeOS system built on OpenClaw that manages calendars, email, notes, and more.
+
 ## License
 
 MIT — use it, fork it, make it yours.
 
 ## Related
 
-- [TomOS](https://github.com/tomdebres/tomos) — The main agent system
-- [OpenClaw](https://github.com/openclaw/agent) — The agent framework powering TomOS
-
----
-
-*Built with ❤️ by Tom de Bres*
+- [OpenClaw](https://github.com/openclaw/agent) — The agent framework
+- [TomOS](https://github.com/tomdebres/tomos) — Personal LifeOS using this memory stack
