@@ -11,6 +11,10 @@ This guide walks you through installing and configuring the OpenClaw Memory Stac
   - [Ollama](https://ollama.ai/) (local, free)
   - OpenAI API (cloud, paid)
 
+## Optional: Networking
+
+If your memory stack components run across multiple machines (e.g., embeddings on one host, database on another), you may want a VPN for secure machine-to-machine communication. [Tailscale](https://tailscale.com/) is a common choice — it's optional and not required by the stack itself.
+
 ## Step 1: Clone and Install
 
 ```bash
