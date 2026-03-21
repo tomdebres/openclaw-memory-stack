@@ -1,156 +1,169 @@
 # OpenClaw Memory Stack
 
-> A typed memory system for AI agents with semantic search, conversation summaries, and automated health monitoring.
+> A practical memory stack for AI agents: local typed memory, semantic document retrieval, conversation memory, and health monitoring.
 
-OpenClaw Memory Stack fixes **agent amnesia** in OpenClaw. It gives your AI agents long-term memory they can actually trust — combining fast local JSON stores for preferences and facts with pgvector-powered semantic search across documents and conversation history.
+OpenClaw Memory Stack is a reusable pattern for fixing **agent amnesia** without pretending every kind of memory should live in one store.
 
-## Why Memory Matters
+It separates:
 
-Every good AI assistant starts each conversation fresh — that's by design. But that means:
+- **local typed memory** for stable facts and preferences
+- **document memory** for semantic retrieval over repos, notes, or vaults
+- **conversation memory** for raw session history, embeddings, and summaries
+- **health checks** so the whole thing does not silently drift out of date
 
-- **Preferences get forgotten** — "Oh, you prefer morning meetings? I had no idea."
-- **Context is lost** — That project decision from last week? Gone.
-- **Search is manual** — You end up re-explaining things over and over.
+## What this repo is
 
-OpenClaw Memory Stack fixes this. It gives your agents structured, queryable memory that persists across sessions — without compromising on privacy or control.
+This repo documents the **generic stack**.
 
-## What It Does
+It is intentionally broader than any single deployment. Some implementation details in a real system will vary by host OS, scheduler, embedding provider, database, and alerting channel.
 
-### 🗂️ Typed Local Memory
-Four JSON files that survive restarts:
-- **preferences.json** — User preferences, settings, defaults
-- **facts.json** — Durable environment facts (timezone, workspace paths)
-- **history.jsonl** — Append-only log of notable events
-- **metrics.json** — Rolling counters and snapshots
+## What TomOS changes
 
-### 🔍 Semantic Search
-When you connect pgvector + LM Studio (or Ollama/OpenAI), agents can ask natural questions:
+TomOS is one concrete implementation of this stack. In TomOS today, the stack is typically shaped like this:
 
-```
-"What did Tom say about the trading strategy last week?"
-```
+- **memory-core** stays local on the host
+- **document memory** uses PostgreSQL + pgvector
+- **conversation memory** stores raw sessions locally and maintains embeddings/summaries for retrieval
+- **health checks** watch freshness, drift, and coverage
+- **scheduling** often uses LaunchAgents on macOS, with cron as fallback/reference
+- **Discord alerting** is usually bot-first, with webhook support still available
 
-And get relevant hits from your indexed documents — not just keyword matches, but *meaningful* matches.
+That TomOS deployment is a useful reference, but it is **not** the only valid way to use this stack.
 
-### 💬 Conversation Summaries
-Automatically store and summarize conversations. Agents can:
-- **Search** past summaries for context
-- **Expand** a summary back to the original messages
-- **Stats** see conversation frequency and trends
+## The layers
 
-### 🏥 Health Monitoring
-Automated checks ensure your memory stack stays healthy:
-- pgvector connectivity
-- LM Studio reachability  
-- Index freshness
-- Discord alerts when things go wrong
+### 1) Local typed memory
 
-## Quick Start
+A small always-on store for things that should not require semantic search:
+
+- preferences
+- durable facts
+- recent history
+- rolling metrics
+
+Typical implementation: JSON/JSONL files managed by helper scripts.
+
+### 2) Document memory
+
+Semantic retrieval over documents that change over time but should remain discoverable:
+
+- repo docs
+- runbooks
+- standards
+- vault/notes content
+
+Typical implementation:
+
+- chunk files
+- embed the chunks
+- store them in PostgreSQL + pgvector
+- retrieve by similarity with metadata/policy shaping
+
+### 3) Conversation memory
+
+Retrieval over actual agent/user conversations.
+
+A practical pattern is:
+
+- keep **raw sessions** as the durable source
+- generate **embeddings** for retrieval
+- maintain **summaries/highlights** for faster continuity and operator review
+
+This is different from document memory. Conversation hits are useful context, but should not automatically outrank canonical docs when exact details matter.
+
+### 4) Health, drift, and coverage
+
+Memory systems fail quietly unless you check them.
+
+Useful health checks include:
+
+- embedding service reachability
+- PostgreSQL/pgvector reachability
+- document index freshness
+- conversation sync freshness
+- embedding coverage
+- summary coverage
+- drift between source sessions and indexed sessions
+
+## Why the separation matters
+
+These layers solve different problems and fail differently:
+
+- typed memory gives fast durable facts
+- document memory finds the right file or passage
+- conversation memory restores continuity
+- health monitoring stops silent rot
+
+Trying to collapse them into a single store usually makes trust worse, not better.
+
+## Quick start
 
 ```bash
-# Clone and enter the repo
 git clone https://github.com/tomdebres/openclaw-memory-stack.git
 cd openclaw-memory-stack
-
-# Install dependencies
 pip install -r requirements.txt
-
-# Set up your environment
 cp .env.example .env
-# Edit .env with your database URL and embedding service
-
-# Initialize the database
+# edit .env for your environment
 python scripts/db_init.py
-
-# Run a health check
 python scripts/memory_health.py
 ```
 
-See [SETUP.md](SETUP.md) for full installation instructions.
+See [SETUP.md](SETUP.md) for environment setup details.
 
-## The Architecture
+## Architecture at a glance
 
 ```
 ┌─────────────────────────────────────────────────────────────┐
-│                     Your AI Agent                          │
+│                         AI Agent                            │
 └─────────────────────────────────────────────────────────────┘
                               │
                               ▼
 ┌─────────────────────────────────────────────────────────────┐
-│                  Agent Memory CLI                           │
-│         (agent-memory query | recent | facts)              │
+│                   agent-memory / helpers                    │
 └─────────────────────────────────────────────────────────────┘
                               │
-            ┌─────────────────┼─────────────────┐
-            ▼                 ▼                 ▼
-   ┌──────────────┐  ┌──────────────┐  ┌──────────────────┐
-   │ Local JSON   │  │   pgvector   │  │ Conversation    │
-   │ Memory Store │  │   (optional) │  │    Memory        │
-   └──────────────┘  └──────────────┘  └──────────────────┘
-                              │
-                              ▼
-                 ┌──────────────────────┐
-                 │  Health Monitor      │
-                 │  (cron + Discord)    │
-                 └──────────────────────┘
+          ┌───────────────────┼───────────────────┬───────────────────┐
+          ▼                   ▼                   ▼                   ▼
+┌────────────────┐  ┌────────────────────┐  ┌──────────────────┐  ┌─────────────────┐
+│ Local typed    │  │ Document memory    │  │ Conversation     │  │ Health / drift  │
+│ memory-core    │  │ PostgreSQL+pgvector│  │ raw + embeds +   │  │ / coverage      │
+│                │  │                    │  │ summaries         │  │                 │
+└────────────────┘  └────────────────────┘  └──────────────────┘  └─────────────────┘
 ```
-
-## Who Is This For?
-
-- **Builders** running AI agents that need persistent context
-- **Developers** who want semantic search across their repos/vaults
-- **Power users** tired of re-explaining preferences to every new session
 
 ## Features
 
 | Feature | Description |
 |---------|-------------|
-| Typed local storage | preferences, facts, history, metrics as JSON |
-| Semantic search | pgvector-backed document retrieval |
-| Conversation memory | Summarize, search, expand past chats |
-| Corpus controls | Allowlists, exclude patterns, never-index rules |
-| Health monitoring | Automated checks with Discord alerts |
-| Multiple embeddings | LM Studio, Ollama, or OpenAI |
-| Incremental indexing | Only re-index changed files |
+| Typed local storage | preferences, facts, history, metrics |
+| Semantic document retrieval | chunked docs in PostgreSQL + pgvector |
+| Conversation memory | raw sessions plus summaries/embeddings |
+| Corpus controls | allowlists, excludes, never-index rules |
+| Health monitoring | freshness, drift, coverage, dependency checks |
+| Multiple embedding backends | LM Studio, Ollama, OpenAI, or equivalent |
+| Scheduler-agnostic ops | LaunchAgents, cron, or another supervisor |
 
 ## Documentation
 
-```
-openclaw-memory-stack/
-├── README.md                    # You're here!
-├── SETUP.md                     # Installation guide
-├── API.md                       # CLI reference
-├── ARCHITECTURE.md              # High-level design diagrams
-├── COMPONENTS.md                # Component breakdown
-│   ├── file-memory.md          # pgvector indexing
-│   ├── conversation-memory.md  # Session storage + summaries
-│   ├── health-monitoring.md    # Cron + Discord alerts
-│   └── unified-search.md      # CLI + API
-├── GUIDES/
-│   ├── adding-sources.md      # How to index new sources
-│   ├── discord-alerts.md      # Discord integration
-│   └── retrieval-standards.md # When agents should query
-├── EMBEDDINGS.md               # LM Studio, Ollama, OpenAI
-└── SECURITY.md                 # Secrets management
-```
+- [ARCHITECTURE.md](ARCHITECTURE.md) — high-level layering and data flow
+- [SETUP.md](SETUP.md) — installation and environment setup
+- [API.md](API.md) — CLI/reference surface
+- [COMPONENTS.md](COMPONENTS.md) — component breakdown
+- [EMBEDDINGS.md](EMBEDDINGS.md) — embedding-provider options
+- [docs/discord-alerts.md](docs/discord-alerts.md) — Discord alerting patterns
+- [SECURITY.md](SECURITY.md) — secret-handling and indexing boundaries
 
 ## Requirements
 
 - **Python 3.10+**
-- **DuckDB** (for pgvector storage)
-- **Embedding service**: LM Studio, Ollama, or OpenAI API (at least one)
-- **Optional**: Discord webhook for alerts
+- **PostgreSQL + pgvector** for document memory
+- **An embedding provider** (LM Studio, Ollama, OpenAI, or similar)
+- **Optional**: Discord bot or webhook for alerts
 
-## Used In
+## Used in practice
 
-This stack is actively used in [TomOS](https://github.com/tomdebres/tomos) — a personal LifeOS system built on OpenClaw that manages calendars, email, notes, and more.
+This stack is used in TomOS, but the repo is written so you can adapt the same pattern to your own OpenClaw deployment or adjacent agent system.
 
 ## License
 
-MIT — use it, fork it, make it yours.
-
-## Related
-
-- [OpenClaw](https://github.com/openclaw/agent) — The agent framework
-- [TomOS](https://github.com/tomdebres/tomos) — Personal LifeOS using this memory stack
-Updated Sun Mar 15 15:18:36 GMT 2026
+MIT

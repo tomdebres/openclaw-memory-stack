@@ -2,153 +2,227 @@
 
 High-level design and data flow for the OpenClaw Memory Stack.
 
+## Generic stack vs. a concrete deployment
+
+This document describes the **generic stack pattern**.
+
+A real deployment can swap pieces in and out:
+
+- different embedding providers
+- different schedulers
+- different alert channels
+- different storage locations for raw conversations
+
+Where helpful, notes below call out the **current TomOS implementation** as one practical example rather than a universal requirement.
+
 ## Overview
 
 ```
 ┌──────────────────────────────────────────────────────────────────┐
 │                         Your AI Agent                            │
-│                      (Concierge, Builder, etc.)                  │
 └──────────────────────────────────────────────────────────────────┘
                                 │
                                 ▼
 ┌──────────────────────────────────────────────────────────────────┐
-│                    Agent Memory CLI                              │
-│         `agent-memory query | recent | facts`                  │
+│                    Agent Memory CLI / helpers                    │
+│               `agent-memory query | recent | facts`              │
 └──────────────────────────────────────────────────────────────────┘
                                 │
-          ┌─────────────────────┼─────────────────────┐
-          ▼                     ▼                     ▼
-┌─────────────────┐  ┌─────────────────┐  ┌──────────────────────┐
-│  Local JSON    │  │    pgvector    │  │   Conversation      │
-│  Memory Store  │  │   (optional)   │  │     Memory           │
-│                 │  │                 │  │                      │
-│ - preferences  │  │ - documents    │  │ - summaries         │
-│ - facts        │  │ - chunks       │  │ - messages          │
-│ - history      │  │ - index_runs   │  │ - stats             │
-│ - metrics      │  │                 │  │                      │
-└─────────────────┘  └─────────────────┘  └──────────────────────┘
-                                │
-                                ▼
-┌──────────────────────────────────────────────────────────────────┐
-│                    Health Monitor                                │
-│         `memory_health.py` + `memory_discord_alert.py`          │
-└──────────────────────────────────────────────────────────────────┘
+        ┌───────────────────────┼───────────────────────┬──────────────────────┐
+        ▼                       ▼                       ▼                      ▼
+┌─────────────────┐  ┌─────────────────────┐  ┌──────────────────────┐  ┌──────────────────┐
+│ Local typed     │  │ Document memory     │  │ Conversation memory  │  │ Health / alerts  │
+│ memory-core     │  │ PostgreSQL+pgvector │  │ raw + embeds +       │  │ drift / coverage │
+│                 │  │                     │  │ summaries             │  │                  │
+└─────────────────┘  └─────────────────────┘  └──────────────────────┘  └──────────────────┘
 ```
 
-## Data Flow
+## Layer responsibilities
 
-### 1. Retrieval (Agent → Memory)
+### 1. Local typed memory
+
+Purpose:
+
+- small durable facts
+- user/system preferences
+- recent notable history
+- counters and metrics
+
+Typical shape:
+
+- `preferences.json`
+- `facts.json`
+- `history.jsonl`
+- `metrics.json`
+
+This layer is simple on purpose. It should not depend on embeddings or database connectivity.
+
+### 2. Document memory
+
+Purpose:
+
+- semantic retrieval over repo docs, notes, standards, runbooks, and other indexed files
+
+Recommended implementation:
+
+- scan allowed roots
+- apply an index policy (`allow`, `exclude`, `never_index`)
+- chunk files by heading/paragraph
+- generate embeddings
+- store chunks + metadata in PostgreSQL + pgvector
+
+Typical tables:
+
+- `memory_documents`
+- `memory_chunks`
+- `memory_index_runs`
+
+TomOS note:
+
+- the current TomOS implementation uses PostgreSQL + pgvector for document memory and treats it as the canonical semantic doc layer
+
+### 3. Conversation memory
+
+Purpose:
+
+- restore continuity across agent/user sessions
+- surface useful prior discussions
+- support summaries/highlights without losing raw history
+
+Recommended implementation pattern:
+
+1. keep **raw sessions/messages** as the durable source
+2. maintain **embeddings** for retrieval
+3. maintain **summaries/highlights** for compact recall and admin review
+
+This matters because summaries alone are too lossy, while raw sessions alone are too noisy.
+
+TomOS note:
+
+- current TomOS conversation memory uses local raw session files plus a local embedding/summaries layer and treats drift/coverage as health signals
+
+### 4. Health, drift, and coverage
+
+Purpose:
+
+- detect when memory quietly stops being trustworthy
+
+Checks worth running:
+
+- embedding provider reachability
+- PostgreSQL/pgvector reachability
+- document index freshness
+- conversation sync freshness
+- source-to-index drift
+- embedding coverage
+- summary coverage
+- dependency/config sanity
+
+This layer is easy to undervalue and painful to skip.
+
+## Retrieval flow
 
 When an agent queries memory:
 
-1. CLI receives the query
-2. Local JSON stores are read (facts, preferences, history, metrics)
-3. If pgvector is configured:
-   - Query is embedded via LM Studio/Ollama/OpenAI
-   - Similar chunks are retrieved from pgvector
-   - Results are ranked by similarity + metadata boosts
-4. Results are returned to the agent
+1. the query hits the memory CLI/helper layer
+2. local typed memory is checked for obvious durable context
+3. document memory is queried semantically when configured
+4. conversation memory is queried for continuity context
+5. results are returned in a blended form or filtered by source type
+6. the agent verifies exact claims against the underlying source when needed
 
-### 2. Indexing (Files → pgvector)
+Trust order should usually be:
 
-When documents are indexed:
+1. live source / direct file inspection
+2. canonical docs from document memory
+3. conversation memory
+4. typed history snippets
 
-1. Indexer scans the root directory
-2. Files are filtered against the policy (allow/exclude/never-index)
-3. Each file is chunked (by heading or paragraph)
-4. Chunks are embedded via the configured embedding service
-5. Chunks are stored in pgvector with metadata
+## Indexing flow
 
-### 3. Conversation Memory
+### Document indexing
 
-Conversations are stored separately:
-
-1. Messages are stored raw in `conversation_messages`
-2. A DAG summary is generated (condensed view)
-3. Summaries are embedded and indexed
-4. Agents can search summaries or expand to full context
-
-## Storage Layers
-
-### Layer 1: Local JSON (Always On)
-
-| File | Purpose | Format |
-|------|---------|--------|
-| `preferences.json` | User preferences | JSON |
-| `facts.json` | Environment facts | JSON |
-| `history.jsonl` | Event log | JSON Lines |
-| `metrics.json` | Counters/snapshots | JSON |
-
-Location: `.staging/memory/` (configurable)
-
-### Layer 2: pgvector (Optional)
-
-When enabled, provides semantic search:
-
-| Table | Purpose |
-|-------|---------|
-| `memory_documents` | Document metadata |
-| `memory_chunks` | Embedded text chunks |
-| `memory_index_runs` | Index run history |
-
-### Layer 3: Conversation Memory
-
-| Table | Purpose |
-|-------|---------|
-| `conversation_messages` | Raw messages |
-| `conversation_summaries` | DAG summaries |
-
-## Embedding Pipeline
-
-```
-File → Read → Chunk → Embed → Store in pgvector
-           │
-           ▼
-    ┌──────────────┐
-    │ Chunk Policy │
-    │              │
-    │ - allow      │
-    │ - exclude    │
-    │ - never_index│
-    └──────────────┘
+```text
+File → filter by policy → chunk → embed → store in PostgreSQL+pgvector
 ```
 
-## Health Monitoring
+Good defaults:
 
-1. **On-demand**: `memory_health.py` checks:
-   - LM Studio/Ollama reachability
-   - pgvector connectivity
-   - Document/chunk counts
-   - Index freshness
+- incremental indexing
+- non-destructive by default
+- explicit prune mode for deletions
+- dry-run path for verification
 
-2. **Scheduled**: `memory_discord_alert.py` runs via cron:
-   - Checks health
-   - Posts to Discord only when:
-     - Health is failing
-     - Index is stale
-     - Or `--always-post` is set
+### Conversation indexing/sync
 
-## Security Boundaries
+```text
+Raw session/message source → sync/import → embed → summarize → persist status
+```
 
-The `never_index` policy prevents sensitive content from being embedded:
+Good defaults:
 
-- `.env*` files
-- Private keys, certificates
-- Password databases
-- Files under `secrets/` or `.secrets/`
-- Credential-bearing filenames (`*token*`, `*password*`, etc.)
+- raw sessions remain the durable truth
+- deleted/archived sessions are not silently treated as active
+- sync is idempotent
+- freshness and coverage are visible in health output
 
-See [SECURITY.md](SECURITY.md) for details.
+## Scheduling
+
+This stack is **scheduler-agnostic**.
+
+You can run recurring jobs with:
+
+- LaunchAgents
+- cron
+- systemd timers
+- another process supervisor
+
+TomOS note:
+
+- on macOS, TomOS commonly prefers **LaunchAgents** for local always-on jobs and keeps cron examples as fallback/reference
+
+Typical recurring jobs:
+
+- document indexing
+- conversation sync
+- health checks
+- alert emission
+- optional daily reports
+
+## Alerting
+
+Discord is a common alert destination.
+
+Recommended generic stance:
+
+- **bot-first** when you want richer formatting or routing flexibility
+- **webhook** when you want the simplest possible channel post
+
+Either approach should only send noisy heartbeats if you explicitly want them.
+
+## Security boundaries
+
+The index policy should prevent sensitive material from being embedded.
+
+Common exclusions:
+
+- `.env*`
+- private keys and certificates
+- password/token-bearing files
+- `secrets/` and similar directories
+- local databases and transient runtime artifacts
+
+See [SECURITY.md](SECURITY.md) for the operational guidance.
 
 ## Extensibility
 
-The modular design allows:
+The stack is intentionally modular:
 
-- **New embedding providers** — just add a new adapter
-- **New storage backends** — swap DuckDB for PostgreSQL
-- **New index sources** — add a new `--source-type`
-- **New alert channels** — extend `memory_discord_alert.py`
+- swap embedding providers without changing the layer model
+- add/remove alert channels without changing retrieval
+- tune indexing policy without changing typed memory
+- evolve conversation summarisation independently of document retrieval
 
 ---
 
-See [COMPONENTS.md](COMPONENTS.md) for detailed component documentation.
+See [README.md](README.md) for the practical overview and [docs/discord-alerts.md](docs/discord-alerts.md) for Discord alerting guidance.
