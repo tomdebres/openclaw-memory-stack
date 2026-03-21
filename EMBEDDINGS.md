@@ -15,8 +15,9 @@ The memory stack needs an embedding service to convert text into vectors for sem
 
 ```bash
 # Environment
-LM_STUDIO_URL="http://localhost:1234/v1"
+LM_STUDIO_URL="http://localhost:1234"
 LM_STUDIO_EMBED_MODEL="nomic-embed-text"
+# or use LM_STUDIO_BASE_URL as alternative env var
 ```
 
 1. Download [LM Studio](https://lmstudio.ai/)
@@ -83,6 +84,7 @@ You can configure fallback, but currently the first available provider is used.
 ```bash
 # Test LM Studio
 curl http://localhost:1234/v1/models
+# Note: LM Studio appends /v1/embeddings automatically when using the SDK
 
 # Test Ollama
 curl http://localhost:11434/api/tags
